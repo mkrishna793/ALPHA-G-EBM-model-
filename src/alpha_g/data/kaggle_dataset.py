@@ -80,6 +80,11 @@ class KaggleARCDataset(Dataset):
         H_in, W_in = inp.shape
         H_out, W_out = tgt.shape
         
+        # Skip garbage synthetic puzzles that exceed official ARC dimensions (32x32) or are empty
+        # This absolutely prevents O(N^2) memory blowouts (OOMs) in the Attention mechanism
+        if H_in > 32 or W_in > 32 or H_out > 32 or W_out > 32 or H_in == 0 or W_in == 0 or H_out == 0 or W_out == 0:
+            return self.__getitem__((idx + 1) % len(self.samples))
+        
         # For simplicity in this version, we pad to the max of (input, target)
         H = max(H_in, H_out)
         W = max(W_in, W_out)
