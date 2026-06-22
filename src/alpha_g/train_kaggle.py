@@ -22,12 +22,13 @@ def main():
     
     train_cfg = TrainConfig(
         epochs=30,             # 30 Epochs for abstract concept induction
-        batch_size=32,         # Reduced physical batch size to 32 to fit 96GB VRAM (each item processes 3 pairs now!)
-        grad_accumulation=8,   # 32 * 8 = 256 effective batch size
-        use_amp=True,          # ENABLED: bfloat16 to completely prevent overflows
-        use_compile=True,      # ENABLED: Torch 2.0 compiler for maximum speed
+        batch_size=32,         # Physical batch size
+        grad_accumulation=2,   # Reduced from 8 to 2 so steps happen much faster
+        use_amp=True,          
+        use_compile=True,      
         lr=3e-4,
-        hmc_steps=10           # Reduced from 20 to save memory footprint
+        hmc_steps=3,           # Drastically reduced HMC sampling overhead
+        hmc_leapfrog=2         # Drastically reduced HMC sampling overhead
     )
 
     print("Initializing Alpha-G for Kaggle Data...")
