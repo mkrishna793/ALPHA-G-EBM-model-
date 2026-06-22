@@ -31,8 +31,8 @@ class Learned2DPE(nn.Module):
 
     def forward(self, H: int, W: int) -> Tensor:
         """Returns (1, H*W, d_model)."""
-        rows = torch.arange(H, device=self.row_embed.weight.device)
-        cols = torch.arange(W, device=self.col_embed.weight.device)
+        rows = torch.arange(H, device=self.row_embed.weight.device).clamp(max=self.row_embed.num_embeddings - 1)
+        cols = torch.arange(W, device=self.col_embed.weight.device).clamp(max=self.col_embed.num_embeddings - 1)
         row_pe = self.row_embed(rows.unsqueeze(1).expand(H, W).reshape(-1))
         col_pe = self.col_embed(cols.unsqueeze(0).expand(H, W).reshape(-1))
         return (row_pe + col_pe).unsqueeze(0)
