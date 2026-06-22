@@ -1,0 +1,19 @@
+[project]
+name = "alpha-g"
+version = "0.1.0"
+description = "Alpha-G: General-Purpose Energy-Based Reasoning Model"
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.2.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "wandb>=0.16",
+    "tqdm>=4.60",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
