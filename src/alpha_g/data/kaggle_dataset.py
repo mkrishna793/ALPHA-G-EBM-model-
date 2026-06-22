@@ -81,7 +81,10 @@ class KaggleARCDataset(Dataset):
         return samples
 
     def __len__(self):
-        return max(1, len(self.samples))
+        # We artificially multiply the length by 250 so that an Epoch is large (100,000 items).
+        # This allows the random sampler in __getitem__ to generate hundreds of thousands 
+        # of unique Support/Query combinations from the 400 base rules!
+        return max(1, len(self.samples)) * 250
 
     def __getitem__(self, idx):
         if not self.samples:
@@ -93,7 +96,9 @@ class KaggleARCDataset(Dataset):
                 'shape': (3, 3)
             }
             
-        task = self.samples[idx]
+        # Modulo to safely wrap around the artificially expanded length
+        actual_idx = idx % len(self.samples)
+        task = self.samples[actual_idx]
         all_pairs = task['support']
         
         import random
