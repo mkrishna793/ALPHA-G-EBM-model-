@@ -53,48 +53,41 @@ def geometry_loss(metric: Tensor) -> Tensor:
 
 def compute_loss(
     energy: Tensor,
-    z_pred: Tensor,
-    z_target: Tensor,
-    context: Tensor,
-    metric: Tensor,
+    z_rule: Tensor,
     logits: Tensor,
-    target_grid: Tensor,
+    query_target: Tensor,
     cfg: TrainConfig,
 ) -> LossOutput:
     """
-    Combined training loss.
+    Combined training loss for In-Context Rule Learning.
 
     Args:
-        energy: (B,) Riemannian energy
-        z_pred: (B, d_model) from BEP
-        z_target: (B, d_model) from target encoder
-        context: (B, d_model) for VICReg
-        metric: (B, d, d) metric tensor
-        logits: (B, H, W, vocab) decoded output
-        target_grid: (B, H, W) integer targets
+        energy: (1,) average energy from support pairs
+        z_rule: (B, d_model) The derived rule vector
+        logits: (B, H, W, vocab) decoded query output
+        query_target: (B, H, W) integer targets for query
         cfg: training config
     """
     energy_loss = energy.mean()
-    vreg = vicreg_loss(context, cfg.vicreg_var_weight, cfg.vicreg_cov_weight)
+    
+    # VICReg applied directly to the z_rule to prevent rule collapse!
+    vreg = vicreg_loss(z_rule, cfg.vicreg_var_weight, cfg.vicreg_cov_weight)
 
-    # Decode loss: cross-entropy on all cells
+    # Decode loss: cross-entropy exclusively on the query pair
     B, H, W, V = logits.shape
     decode_loss = F.cross_entropy(
-        logits.reshape(-1, V), target_grid.reshape(-1).long()
+        logits.reshape(-1, V), query_target.reshape(-1).long()
     )
 
-    # Self-consistency loss (z_pred should match re-encoded decode)
-    consistency_loss = ((z_pred - z_target.detach()) ** 2).sum(dim=-1).mean()
-
-    # Geometry regularization
-    geo_loss = geometry_loss(metric)
+    # We removed geometry loss and consistency loss since rule induction 
+    # natively handles alignment via the bottleneck.
+    consistency_loss = torch.tensor(0.0, device=logits.device)
+    geo_loss = torch.tensor(0.0, device=logits.device)
 
     total = (
         energy_loss
         + vreg
         + cfg.decode_weight * decode_loss
-        + cfg.consistency_weight * consistency_loss
-        + cfg.geometry_weight * geo_loss
     )
 
     return LossOutput(

@@ -49,18 +49,18 @@ class Trainer:
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] = lr
 
-            inp = batch['input'].to(self.device)
-            tgt = batch['target'].to(self.device)
-            # Use max shape in batch for simplicity in dummy setting
+            s_in = batch['s_in'].to(self.device)
+            s_out = batch['s_out'].to(self.device)
+            q_in = batch['q_in'].to(self.device)
+            q_out = batch['q_out'].to(self.device)
+            
             H, W = batch['batch_shape']
-            shapes = [(H, W)] * inp.shape[0]
+            shapes = [(H, W)] * s_in.shape[0]
 
-            # Use bfloat16 to completely prevent the FP16 overflows we saw earlier
             with torch.amp.autocast('cuda', dtype=torch.bfloat16, enabled=self.cfg.use_amp):
-                out = self.model(inp, tgt, shapes)
+                out = self.model(s_in, s_out, q_in, shapes)
                 loss_out = compute_loss(
-                    out.energy, out.z_pred, out.z_target,
-                    out.context, out.metric, out.logits, tgt, self.cfg
+                    out.energy, out.z_pred, out.logits, q_out, self.cfg
                 )
                 loss = loss_out.total / self.cfg.grad_accumulation
 
@@ -81,7 +81,6 @@ class Trainer:
                 # EMA update
                 progress = self.step / self.total_steps
                 momentum = self.cfg.ema_start + (self.cfg.ema_end - self.cfg.ema_start) * progress
-                # Note: PyTorch uncompiled underlying model access
                 m = self.model._orig_mod if hasattr(self.model, '_orig_mod') else self.model
                 m.update_target_encoder(momentum)
 
@@ -97,16 +96,18 @@ class Trainer:
         total_loss = 0
         with torch.no_grad():
             for batch in self.val_dl:
-                inp = batch['input'].to(self.device)
-                tgt = batch['target'].to(self.device)
+                s_in = batch['s_in'].to(self.device)
+                s_out = batch['s_out'].to(self.device)
+                q_in = batch['q_in'].to(self.device)
+                q_out = batch['q_out'].to(self.device)
+                
                 H, W = batch['batch_shape']
-                shapes = [(H, W)] * inp.shape[0]
+                shapes = [(H, W)] * s_in.shape[0]
 
-                with autocast(enabled=self.cfg.use_amp):
-                    out = self.model(inp, tgt, shapes)
+                with torch.amp.autocast('cuda', dtype=torch.bfloat16, enabled=self.cfg.use_amp):
+                    out = self.model(s_in, s_out, q_in, shapes)
                     loss_out = compute_loss(
-                        out.energy, out.z_pred, out.z_target,
-                        out.context, out.metric, out.logits, tgt, self.cfg
+                        out.energy, out.z_pred, out.logits, q_out, self.cfg
                     )
                     total_loss += loss_out.total.item()
                     

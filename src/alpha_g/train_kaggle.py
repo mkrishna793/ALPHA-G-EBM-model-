@@ -21,10 +21,10 @@ def main():
     )
     
     train_cfg = TrainConfig(
-        epochs=10,             # 10 Epochs is plenty for 100k synthetics (1M total steps), takes ~2 hours
-        batch_size=64,         # Massive batch size now that garbage grids > 32x32 are skipped
-        use_amp=True,          # ENABLED: We now use bfloat16 which never overflows!
-        use_compile=True,      # ENABLED: Compiles incredibly fast now that batch_size is stable
+        epochs=30,             # 30 Epochs for abstract concept induction (requires more epochs than pure memorization)
+        batch_size=256,        # Massive batch size utilizing 96GB VRAM on RTX 6000 Ada
+        use_amp=True,          # ENABLED: bfloat16 to completely prevent overflows
+        use_compile=True,      # ENABLED: Torch 2.0 compiler for maximum speed
         lr=3e-4,
         hmc_steps=10           # Reduced from 20 to save memory footprint
     )

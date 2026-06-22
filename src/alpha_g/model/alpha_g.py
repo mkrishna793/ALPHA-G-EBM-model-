@@ -19,10 +19,7 @@ from alpha_g.model.serializer import UniversalSerializer
 class AlphaGOutput:
     """Output from a training forward pass."""
     energy: Tensor
-    z_pred: Tensor
-    z_target: Tensor
-    context: Tensor
-    metric: Tensor
+    z_pred: Tensor # The derived rule vector
     logits: Tensor
     merged_features: Tensor
 
@@ -68,49 +65,55 @@ class AlphaG(nn.Module):
         for t_p, s_p in zip(self.target_encoder.parameters(), self.aeg.encoder.parameters()):
             t_p.lerp_(s_p, 1.0 - momentum)
 
-    def forward(self, input_grid: Tensor, target_grid: Tensor, shapes: list[tuple[int, int]]) -> AlphaGOutput:
+    def forward(self, s_in: Tensor, s_out: Tensor, q_in: Tensor, shapes: list[tuple[int, int]]) -> AlphaGOutput:
         """
-        Training forward pass.
-
-        Args:
-            input_grid: (B, H, W)
-            target_grid: (B, H, W)
-            shapes: list of (H, W) pairs
+        Training forward pass implementing In-Context Rule Learning.
         """
-        # Serialize input
-        tokens, mask = self.serializer([input_grid], shapes)
+        B, N_sup, H, W = s_in.shape
+        
+        # 1. Process Support Pairs in parallel to derive rule
+        s_in_flat = s_in.reshape(B * N_sup, H, W)
+        s_out_flat = s_out.reshape(B * N_sup, H, W)
+        
+        s_shapes = []
+        for s in shapes:
+            s_shapes.extend([s] * N_sup)
 
-        # 1. AEG: Geometry & Context
+        # Encode Support Context
+        tokens, mask = self.serializer([s_in_flat], s_shapes)
         context, h_seq, metric = self.aeg(tokens, mask)
 
-        # 2. Target Embedding
+        # Encode Support Targets
         with torch.no_grad():
-            t_tokens, t_mask = self.serializer([target_grid], shapes)
+            t_tokens, t_mask = self.serializer([s_out_flat], s_shapes)
             t_h = self.target_encoder(t_tokens, src_key_padding_mask=t_mask)
             z_target = self.z_encoder(t_h[:, 0])
             z_target = F.normalize(z_target, dim=-1)
 
-        # Add noise to target z for training
         z_noisy = z_target + self.train_cfg.z_noise * torch.randn_like(z_target)
 
-        # 3. BEP: Bidirectional Processing
-        merged, z_pred = self.bep(tokens, z_noisy, context, mask)
-
-        # 4. Energy
-        energy = self.aeg.energy(z_pred, z_target, metric)
-
-        # 5. Decode
-        H, W = shapes[0]
-        logits = self.decoder(z_noisy, context, merged, H, W, mask)
+        # Support BEP
+        _, z_pred = self.bep(tokens, z_noisy, context, mask)
+        
+        # Support Energy
+        energy = self.aeg.energy(z_pred, z_target, metric).mean()
+        
+        # Mean pool support z vectors to create the task's Rule Vector
+        z_rule = z_pred.reshape(B, N_sup, -1).mean(dim=1) # (B, d_latent)
+        
+        # 2. Process Query Pair using the derived Rule Vector
+        q_tokens, q_mask = self.serializer([q_in], shapes)
+        q_context, _, q_metric = self.aeg(q_tokens, q_mask)
+        
+        q_merged, _ = self.bep(q_tokens, z_rule, q_context, q_mask)
+        
+        logits = self.decoder(z_rule, q_context, q_merged, H, W, q_mask)
 
         return AlphaGOutput(
             energy=energy,
-            z_pred=z_pred,
-            z_target=z_target,
-            context=context,
-            metric=metric,
+            z_pred=z_rule,
             logits=logits,
-            merged_features=merged,
+            merged_features=q_merged,
         )
 
     def solve(self, input_grid: Tensor, shapes: list[tuple[int, int]], out_H: int, out_W: int) -> tuple[Tensor, dict]:
