@@ -21,8 +21,9 @@ def main():
     )
     
     train_cfg = TrainConfig(
-        epochs=30,             # 30 Epochs for abstract concept induction (requires more epochs than pure memorization)
-        batch_size=256,        # Massive batch size utilizing 96GB VRAM on RTX 6000 Ada
+        epochs=30,             # 30 Epochs for abstract concept induction
+        batch_size=32,         # Reduced physical batch size to 32 to fit 96GB VRAM (each item processes 3 pairs now!)
+        grad_accumulation=8,   # 32 * 8 = 256 effective batch size
         use_amp=True,          # ENABLED: bfloat16 to completely prevent overflows
         use_compile=True,      # ENABLED: Torch 2.0 compiler for maximum speed
         lr=3e-4,
