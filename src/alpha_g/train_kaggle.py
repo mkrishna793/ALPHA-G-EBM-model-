@@ -22,7 +22,7 @@ def main():
     
     train_cfg = TrainConfig(
         epochs=50,             # 50 Epochs for 100k
-        batch_size=64,         # Reduced from 256 to fit compilation graph in 40GB
+        batch_size=16,         # Dropped aggressively to 16 to fit HMC unrolled memory
         use_amp=True,          # BF16 Mixed Precision
         use_compile=False,     # Disabled so training starts INSTANTLY
         lr=3e-4,
