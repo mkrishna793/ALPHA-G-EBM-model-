@@ -40,7 +40,7 @@ def main():
     )
     
     # If no data found, exit cleanly
-    if len(train_dl.dataset.samples) == 0:
+    if len(train_dl.dataset) == 0:
         print(f"ERROR: No valid data found in {data_dir}. Please download the Kaggle dataset first.")
         return
 
