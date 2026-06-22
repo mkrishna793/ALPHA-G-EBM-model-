@@ -72,8 +72,9 @@ class KaggleARCDataset(Dataset):
             }
             
         sample = self.samples[idx]
-        inp = sample['input']
-        tgt = sample['target']
+        # Clamp values to safe vocabulary range (0-99) to prevent ANY out-of-bounds CUDA asserts
+        inp = torch.clamp(sample['input'], min=0, max=99)
+        tgt = torch.clamp(sample['target'], min=0, max=99)
         
         # Dimensions
         H_in, W_in = inp.shape
