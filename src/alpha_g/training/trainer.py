@@ -65,6 +65,11 @@ class Trainer:
                 )
                 loss = loss_out.total / self.cfg.grad_accumulation
 
+            if torch.isnan(loss) or torch.isinf(loss):
+                print(f"\\nWARNING: NaN/Inf loss detected at Epoch {epoch}, Batch {i}! Skipping batch to prevent GPU crash.")
+                self.optimizer.zero_grad()
+                continue
+
             self.scaler.scale(loss).backward()
 
             if (i + 1) % self.cfg.grad_accumulation == 0:
