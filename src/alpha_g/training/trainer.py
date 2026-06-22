@@ -25,11 +25,9 @@ class Trainer:
             print("Compiling model for speed...")
             self.model = torch.compile(self.model)
 
-        self.optimizer = torch.optim.AdamW(
-            self.model.parameters(), lr=t_cfg.lr, weight_decay=t_cfg.weight_decay
-        )
-        
-        self.scaler = GradScaler(enabled=self.cfg.use_amp)
+        self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=t_cfg.lr, weight_decay=t_cfg.weight_decay)
+        # bfloat16 does not need scaling, so we explicitly disable it
+        self.scaler = torch.amp.GradScaler('cuda', enabled=False)
         self.step = 0
         self.total_steps = len(train_dl) * t_cfg.epochs
 
@@ -57,7 +55,8 @@ class Trainer:
             H, W = batch['batch_shape']
             shapes = [(H, W)] * inp.shape[0]
 
-            with autocast(enabled=self.cfg.use_amp):
+            # Use bfloat16 to completely prevent the FP16 overflows we saw earlier
+            with torch.amp.autocast('cuda', dtype=torch.bfloat16, enabled=self.cfg.use_amp):
                 out = self.model(inp, tgt, shapes)
                 loss_out = compute_loss(
                     out.energy, out.z_pred, out.z_target,

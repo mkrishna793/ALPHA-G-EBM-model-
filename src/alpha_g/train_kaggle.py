@@ -21,10 +21,10 @@ def main():
     )
     
     train_cfg = TrainConfig(
-        epochs=50,             # 50 Epochs for 100k
-        batch_size=16,         # Dropped aggressively to 16 to fit HMC unrolled memory
-        use_amp=False,         # DISABLED: Prevents FP16/BF16 NaN overflows from crashing the GPU
-        use_compile=False,     # Disabled so training starts INSTANTLY
+        epochs=10,             # 10 Epochs is plenty for 100k synthetics (1M total steps), takes ~2 hours
+        batch_size=64,         # Massive batch size now that garbage grids > 32x32 are skipped
+        use_amp=True,          # ENABLED: We now use bfloat16 which never overflows!
+        use_compile=True,      # ENABLED: Compiles incredibly fast now that batch_size is stable
         lr=3e-4,
         hmc_steps=10           # Reduced from 20 to save memory footprint
     )
