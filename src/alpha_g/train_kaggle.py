@@ -25,7 +25,7 @@ def main():
         batch_size=32,         # Physical batch size
         grad_accumulation=2,   # Reduced from 8 to 2 so steps happen much faster
         use_amp=True,          
-        use_compile=True,      
+        use_compile=False,     # DISABLED: Grid sizes change every batch, causing continuous 2-minute recompilations!
         lr=3e-4,
         hmc_steps=3,           # Drastically reduced HMC sampling overhead
         hmc_leapfrog=2         # Drastically reduced HMC sampling overhead
