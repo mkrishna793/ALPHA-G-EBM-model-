@@ -23,7 +23,8 @@ class LossOutput:
 def vicreg_loss(z: Tensor, var_w: float = 1.0, cov_w: float = 0.01) -> Tensor:
     """VICReg: variance + covariance regularization to prevent collapse."""
     z = z - z.mean(dim=0)
-    std = z.std(dim=0)
+    # Safe std calculation to prevent NaN gradients when variance is 0
+    std = torch.sqrt(z.var(dim=0) + 1e-04)
     var_loss = F.relu(1.0 - std).mean()
 
     n, d = z.shape
