@@ -21,9 +21,9 @@ class ArchConfig(BaseModel):
     n_heads: int = 8
     d_ffn: int = 1024
     dropout: float = 0.1
-    max_vocab: int = 32         # color/symbol vocabulary
-    max_seq_len: int = 1024     # max tokens
-    max_grid: int = 32          # max H or W
+    max_vocab: int = 100        # color/symbol vocabulary (safe limit)
+    max_seq_len: int = 4096     # max tokens (safe limit)
+    max_grid: int = 128         # max H or W (safe limit to prevent IndexError)
     # AEG
     aeg_layers: int = 4
     metric_rank: int = 16       # low-rank metric approximation
