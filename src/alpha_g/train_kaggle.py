@@ -23,7 +23,7 @@ def main():
     train_cfg = TrainConfig(
         epochs=50,             # 50 Epochs for 100k
         batch_size=16,         # Dropped aggressively to 16 to fit HMC unrolled memory
-        use_amp=True,          # BF16 Mixed Precision
+        use_amp=False,         # DISABLED: Prevents FP16/BF16 NaN overflows from crashing the GPU
         use_compile=False,     # Disabled so training starts INSTANTLY
         lr=3e-4,
         hmc_steps=10           # Reduced from 20 to save memory footprint
