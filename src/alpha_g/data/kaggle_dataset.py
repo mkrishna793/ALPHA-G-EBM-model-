@@ -34,18 +34,25 @@ class KaggleARCDataset(Dataset):
                 with open(file_path, 'r', encoding='utf-8') as f:
                     task = json.load(f)
                 
-                # Extract all pairs from 'train' and 'test' splits
-                for split in ['train', 'test']:
-                    if split in task:
-                        for pair in task[split]:
-                            if 'input' in pair and 'output' in pair: # 'output' is standard ARC, sometimes 'target'
-                                inp = pair['input']
-                                tgt = pair.get('output', pair.get('target', None))
-                                if tgt is not None:
-                                    samples.append({
-                                        'input': torch.tensor(inp, dtype=torch.long),
-                                        'target': torch.tensor(tgt, dtype=torch.long)
-                                    })
+                # Recursively extract any dictionary with 'input' and 'output'
+                def extract_pairs(node, samples_list):
+                    if isinstance(node, dict):
+                        # Check if this node is an ARC pair
+                        if 'input' in node and ('output' in node or 'target' in node):
+                            inp = node['input']
+                            tgt = node.get('output', node.get('target'))
+                            samples_list.append({
+                                'input': torch.tensor(inp, dtype=torch.long),
+                                'target': torch.tensor(tgt, dtype=torch.long)
+                            })
+                        else:
+                            for k, v in node.items():
+                                extract_pairs(v, samples_list)
+                    elif isinstance(node, list):
+                        for item in node:
+                            extract_pairs(item, samples_list)
+
+                extract_pairs(task, samples)
             except Exception as e:
                 print(f"Error loading {file_path}: {e}")
 
