@@ -35,6 +35,7 @@ class KaggleARCDataset(Dataset):
                 def extract_tasks(node, tasks_list):
                     if isinstance(node, dict):
                         if 'train' in node and 'test' in node:
+                            # Official ARC format handling (if present)
                             support = []
                             for p in node['train']:
                                 if 'input' in p and ('output' in p or 'target' in p):
@@ -55,8 +56,22 @@ class KaggleARCDataset(Dataset):
                             for k, v in node.items():
                                 extract_tasks(v, tasks_list)
                     elif isinstance(node, list):
-                        for item in node:
-                            extract_tasks(item, tasks_list)
+                        # Kaggle format: A list of dicts, where each dict has input/output.
+                        # This entire list represents a single Task/Rule.
+                        is_kaggle_task = all(isinstance(item, dict) and 'input' in item and ('output' in item or 'target' in item) for item in node)
+                        if is_kaggle_task and len(node) >= 2:
+                            pairs = []
+                            for p in node:
+                                pairs.append((
+                                    torch.tensor(p['input'], dtype=torch.long),
+                                    torch.tensor(p.get('output', p.get('target')), dtype=torch.long)
+                                ))
+                            # We store all pairs as 'support', and in __getitem__ we will dynamically split them
+                            # into support and query.
+                            tasks_list.append({'support': pairs, 'query': pairs}) # __getitem__ will pick from these
+                        else:
+                            for item in node:
+                                extract_tasks(item, tasks_list)
 
                 extract_tasks(task, samples)
             except Exception as e:
@@ -79,16 +94,20 @@ class KaggleARCDataset(Dataset):
             }
             
         task = self.samples[idx]
-        s_pairs = task['support']
+        all_pairs = task['support']
         
         import random
-        if len(s_pairs) >= 2:
-            s_pairs = random.sample(s_pairs, 2)
+        if len(all_pairs) >= 3:
+            chosen = random.sample(all_pairs, 3)
+            s_pairs = chosen[:2]
+            q_pair = chosen[2]
+        elif len(all_pairs) == 2:
+            s_pairs = [all_pairs[0], all_pairs[0]]
+            q_pair = all_pairs[1]
         else:
-            s_pairs = s_pairs * 2 # Duplicate if < 2
+            s_pairs = [all_pairs[0], all_pairs[0]]
+            q_pair = all_pairs[0]
             
-        q_pair = random.choice(task['query'])
-        
         def clamp(t): return torch.clamp(t, min=0, max=99)
         
         s_in = [clamp(p[0]) for p in s_pairs]
