@@ -22,11 +22,11 @@ def main():
     
     train_cfg = TrainConfig(
         epochs=50,             # 50 Epochs for 100k
-        batch_size=256,        # Large batch size for A100/H100
+        batch_size=64,         # Reduced from 256 to fit compilation graph in 40GB
         use_amp=True,          # BF16 Mixed Precision
         use_compile=True,      # JIT compile for speed
         lr=3e-4,
-        hmc_steps=20           # HMC search steps
+        hmc_steps=10           # Reduced from 20 to save memory footprint
     )
 
     print("Initializing Alpha-G for Kaggle Data...")
